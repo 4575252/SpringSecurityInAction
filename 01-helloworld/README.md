@@ -4,8 +4,7 @@
 [![Lombok](https://img.shields.io/badge/Lombok-Spring_Boot_1.18.20-pink?logo=lombok)](https://github.com/4575252/SpringBootBook)
 [![Swagger2](https://img.shields.io/badge/Swagger2-Knife4j_3.0.2-blue?logo=swagger)](https://github.com/4575252/SpringBootBook)
 
-在helloWorld的基础上引入security，访问有临时口令要求
-- hello world 实验
+在helloWorld的基础上引入security，做一个快速的演示，仅需一个引入，既可有登录窗、退出口、默认账户和临时密码及全局认证！
 
 ## 在helloWorld的基础上引入security
 操作过程

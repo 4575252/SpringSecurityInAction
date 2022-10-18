@@ -11,4 +11,6 @@ import com.iyyxx.token.domain.User;
  **/
 public interface LoginServcie {
     ResponseResult login(User user);
+
+    ResponseResult logout();
 }

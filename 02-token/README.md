@@ -18,7 +18,22 @@ helloworld工程中已演示，这里不赘述
 ```
 
 
-## 二、引入基础配置（含mysql、redis等配置）
+## 二、认证
+SpringSecurity的认证有一套默认机制，也就是认证链，具体可看三更的材料，在本文档里有提供。
+
+该认证链规范，易于扩展，相对也复杂、冗长，目前前后端分离框架，需要对该认证链做一下修改。
+- 1、除了helloworld中引入的security的依赖，还需要引入mysql、redis等基础环境，这是主流配置，高效。
+- 2、认证链末端的【临时用户认证】替换为【依赖数据库的账号密码认证】
+- 3、密码认证级别采用Spring推荐的BCrypt加密算法
+- 4、提供认证接口，也就是mvc中的controller，调用service方法进行操作，
+  - 4.1、根据账号、密码，依据Security的authenticationManager进行认证
+  - 4.2、认证通过后，将用户id进行JWT加密，作为令牌提供给前端，并进行redis缓存
+  - 4.3、如果认证失败，则抛出异常，框架会统一处理，前端也相应的对错误代码进行处理和展示。
+- 5、认证过滤的实现，认证成功后，前端将token放入请求头，这样后续的操作都会被通过！
+  - 注意点：认证过滤继承OncePer避免被多次调用，另外需要将这个过滤器放在【用户密码验证过滤器】之前！
+
+
+### 2.1、引入基础配置（含mysql、redis等配置）
 本章内容较多，具体如下：
 - 引入依赖
   - redis
@@ -36,7 +51,7 @@ helloworld工程中已演示，这里不赘述
 - 导入数据库表，sys_user，脚本在工程resources
 - 导入user的mapper、service，并开启工程入口的mapper扫描，然后使用test测试，验证！
 
-## 三、实现账号口令从数据库获取
+###  2.2、实现账号口令从数据库获取
 >认证链的末端，UserDetail默认是内存临时用户认证，这里继承、重写，实现数据库认证方式。
 
 做法如下：
@@ -51,7 +66,7 @@ helloworld工程中已演示，这里不赘述
 - 注意：这里因为没有密码加密器，所以数据库的明文密码需要加前缀`{noop}`
 
 
-## 四、实现密码加密存储
+### 2.3、实现密码加密存储
 采用Spring推荐的BCryptPasswordEncode，具体如下
 - 创建一个类，继承WebSecurityConfigurerAdapter
 - 存放下方代码，数据库密码更换为加密后的代码，具体可以执行test方法进行体验
@@ -70,7 +85,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 }
 ```
 
-## 五、登录接口实现
+### 2.4、登录接口实现
 这块比较复杂，主要包括以下几块：
 - 定义LoginController，作为入口，映射为`/user/login`，并在SecurityConfig.java中放行
 - LoginController的登录接口调用LoginService实现，并返回ResponseResult（code，msg，data）
@@ -78,7 +93,42 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
   - 根据用户密码做认证，认证接口在并在SecurityConfig中重写并赋予@Bean注解，这里就可以注入了
   - 认证失败就抛出RuntimeException，框架去捕获，前端统一处理
   - 认证成功就依据用户ID生成JWT凭据，并放入redis提升重复存取的效率，再返回给前端！
+> 技巧1：`CTRL`+`ALT`+鼠标点击接口，可以查看实现类
+> 技巧2：`CTRL`+`P` 用在参数上，可以列出所有提示
 
 
+### 2.5、认证过滤器
+用户登录成功后获得了JWT的token，在后续的请求头中会投放这个数据，服务端需要有个过滤器来做统一判断、缓存，具体实现如下：
+- 用户请求头带了JWT的token
+- 过滤器集成OncePer过滤器，避免反复使用。
+- 过滤器解析token获取id，没有token就往后扔即可，后面还有其他过滤器，比如登录验证做处理
+- 解析id成功后，去redis获取用户信息LoginUser，然后存放到SecurityContextHolder，这样整个认证链都会轻松获取数据
+- 当然这边有个了授权的TODO任务
 
 
+### 2.6、配置过滤器
+前端：当用户调用登录接口进行POST账号、密码，认证通过后取得token，后续的请求放入了header
+后端：配置认证过滤继承OncePer避免被多次调用，另外需要将这个过滤器放在【用户密码验证过滤器】之前！
+
+
+### 2.7、退出
+前端：调用/user/logout接口即可，当然header中的token还是要的~
+后端：方法从controller穿透到service，首先从SecurityContextHolder中取出Authentication，强转为LoginUser，然后根据userid清除redis中的缓存用户信息！
+
+注意：下次登录获取到新的token，但旧的token还是可以继续使用的，这个跟JWT的过期算法有关
+
+### 2.8、补充JWT
+JWT全称Json Web Token,用于解决分布式环境session共享麻烦的问题，一般解决方案是持久化session或客户端缓存！
+
+本章JWT仅缓存用户ID，服务端不加密仅签名，不能有效控制风险，【可以用对称加密对subject做一次加密】，另外增加SSL控制是更完美了！
+
+缺陷：JWT因为不在服务器上保存导致不可管理，所以时间不能过长，目前设置1小时，退出后如果再有效期间内还是可以使用的！
+
+本章做了redis缓存，且顺序靠前，所以退出后清理redis，相应的JWT临时不可用，但重新登录后，新旧JWT都是有效的！在过期时间前
+
+另外，jwt保存到cookie比local storage会稍微更安全一点点
+
+具体资料可以参考：
+- [JSON Web Token 入门教程](https://www.ruanyifeng.com/blog/2018/07/json_web_token-tutorial.html)
+- [JSON Web Tokens (JWT) 在线解密](https://www.box3.cn/tools/jwt.html)
+- [理解 JWT 的使用场景和优劣](https://www.cnkirito.moe/jwt-learn-3/)

@@ -5,9 +5,7 @@ import com.iyyxx.token.domain.User;
 import com.iyyxx.token.service.LoginServcie;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class LoginController {
@@ -22,5 +20,10 @@ public class LoginController {
     public ResponseResult login(@RequestBody User user){
 
         return loginServcie.login(user);
+    }
+
+    @GetMapping("/user/logout")
+    public ResponseResult logout(){
+        return loginServcie.logout();
     }
 }

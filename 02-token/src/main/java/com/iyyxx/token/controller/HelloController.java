@@ -14,8 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class HelloController {
 
     @ApiOperation(value = "无注解方式", notes = "多个参数，多种的查询参数类型")
-//    @PreAuthorize("hasAuthority('system:hello:hello')")
-    @PreAuthorize("hasAnyAuthority('admin','test','system:hello:hello')")
+//    @PreAuthorize("@ex.hasAuthority('system:hello:hello')")
+    @PreAuthorize("hasAuthority('system:hello:hello')")
+//    @PreAuthorize("hasAnyAuthority('admin','test','system:hello:hello')")
 //    @PreAuthorize("hasRole('system:hello:hello')")
 //    @PreAuthorize("hasAnyRole('admin','system:hello:hello')")
     @GetMapping("/hello")

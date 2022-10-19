@@ -151,7 +151,7 @@ JWT全称Json Web Token,用于解决分布式环境session共享麻烦的问题�
 // TODO 临时硬编码，下一章用RBAC模型从数据库中获取
 List<String> list = new ArrayList<>(Arrays.asList("test"));
 ```
->上面资源权限主要用@PreAuthorize注解，其实还有另外两种，只是这个比较常用，另外他的参数是个SE表达式，ctrl+鼠标点击可以查看，还有其他方法，后续还可以自行扩展方便灵活！
+>上面资源权限主要用@PreAuthorize注解，其实还有另外两种，只是这个比较常用，另外他的参数是个SPL表达式，ctrl+鼠标点击可以查看，还有其他方法，后续还可以自行扩展方便灵活！
 
 ### 2.2、基于RBAC模型的授权管理
 RBAC模型，主要三张主表用户、权限、角色和两张关联表为主，脚本在资源包里。
@@ -159,6 +159,68 @@ RBAC模型，主要三张主表用户、权限、角色和两张关联表为主�
 操作步骤：
 - 导入sql表结构到mysql中，创建测试数据（权限相关）
 - 导入menu的实体和mapper
-- 生产mapper文件和方法，这里可以用【free mybatis tools】插件，在接口和方法上自动生成，具体sql可以在navicat先测试通过再拷过来
+- 生产mapper文件和方法，这里可以用【[free mybatis tools](https://www.huangchaoyu.com/2019/12/11/free-mybatis-plugin%E7%9A%84%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95/)】插件，在接口和方法上自动生成，具体sql可以在navicat先测试通过再拷过来
 - 配置mapper的目录，这里用了默认的mapper文件夹可以不配置，不过application文件中还是做了默认配置
 - 最后改造上一章留下的todo， UserDetailsServiceImpl
+
+### 2.3、认证鉴权的统一异常处理
+新建两个handler，分别是认证失败和权限不足的异常捕获，然后在SecurityConfig进行装载
+- 新建AccessDeniedHandlerImpl implements AccessDeniedHandler
+- 新建AuthenticationEntryPointImpl implements AuthenticationEntryPoint
+- SecurityConfig在configure方法下扩展
+```java
+http.exceptionHandling().authenticationEntryPoint(authenticationEntryPoint).
+        accessDeniedHandler(accessDeniedHandler);
+```
+
+### 2.4、跨域配置
+按作者的思路，前后端分离部署，访问是跨域的，需要开启mvc和安全控制两个开关，实测只要开启mvc即可，这里保留意见，具体如下：
+
+```java
+//mvc config重写这个方法
+@Override
+protected void addCorsMappings(CorsRegistry registry) {
+      // 设置允许跨域的路径
+      registry.addMapping("/**")
+      // 设置允许跨域请求的域名
+      .allowedOriginPatterns("*")
+      // 是否允许cookie
+      .allowCredentials(true)
+      // 设置允许的请求方式
+      .allowedMethods("GET", "POST", "DELETE", "PUT")
+      // 设置允许的header属性
+      .allowedHeaders("*")
+      // 跨域允许时间
+      .maxAge(3600);
+      }
+      
+//SecurityConfig的configure方法中，开启csrf；
+//        http.csrf();
+```
+
+### 2.5、自定义权限校验
+自定义一个bean，指定别名，配置好方法并接收参数，与SecurityContextHolder进行比对，当然资源配置那块要用`@ex`
+```java
+@Component("ex")
+public class SGExpressionRoot {
+
+    public boolean hasAuthority(String authority){
+        //获取当前用户的权限
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+        List<String> permissions = loginUser.getPermissions();
+        //判断用户权限集合中是否存在authority
+        return permissions.contains(authority);
+    }
+}
+```
+在SPEL表达式中使用 @ex相当于获取容器中bean的名字未ex的对象。然后再调用这个对象的hasAuthority方法
+
+~~~java
+    @RequestMapping("/hello")
+    @PreAuthorize("@ex.hasAuthority('system:dept:list')")
+    public String hello(){
+        return "hello";
+    }
+~~~
+

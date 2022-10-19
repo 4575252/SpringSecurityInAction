@@ -132,3 +132,33 @@ JWT全称Json Web Token,用于解决分布式环境session共享麻烦的问题�
 - [JSON Web Token 入门教程](https://www.ruanyifeng.com/blog/2018/07/json_web_token-tutorial.html)
 - [JSON Web Tokens (JWT) 在线解密](https://www.box3.cn/tools/jwt.html)
 - [理解 JWT 的使用场景和优劣](https://www.cnkirito.moe/jwt-learn-3/)
+
+
+
+
+## 三、授权
+授权基本流程：
+- 
+
+### 2.1、简单授权
+授权基本流程：
+- 开启授权：SecurityConfig配置类开启@EnableGlobalMethodSecurity(prePostEnabled = true)注解
+- 资源权限：controller的方法加上 @PreAuthorize("hasAuthority('test')")注解
+- 交互凭据：LoginUser继承了UserDetails，增加权限实参和临时参数，并在构造函数提供注入，提供权限get
+- 扩展过滤：之前过滤器中对UsernamePasswordAuthenticationToken的授权为null，现在可以从loginUser直接取得了
+- 登录控制器增加授权，临时硬编码，下一章进行RBAC改造，具体如下：
+```java
+// TODO 临时硬编码，下一章用RBAC模型从数据库中获取
+List<String> list = new ArrayList<>(Arrays.asList("test"));
+```
+>上面资源权限主要用@PreAuthorize注解，其实还有另外两种，只是这个比较常用，另外他的参数是个SE表达式，ctrl+鼠标点击可以查看，还有其他方法，后续还可以自行扩展方便灵活！
+
+### 2.2、基于RBAC模型的授权管理
+RBAC模型，主要三张主表用户、权限、角色和两张关联表为主，脚本在资源包里。
+
+操作步骤：
+- 导入sql表结构到mysql中，创建测试数据（权限相关）
+- 导入menu的实体和mapper
+- 生产mapper文件和方法，这里可以用【free mybatis tools】插件，在接口和方法上自动生成，具体sql可以在navicat先测试通过再拷过来
+- 配置mapper的目录，这里用了默认的mapper文件夹可以不配置，不过application文件中还是做了默认配置
+- 最后改造上一章留下的todo， UserDetailsServiceImpl

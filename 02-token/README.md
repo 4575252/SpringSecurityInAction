@@ -6,6 +6,8 @@
 
 在helloWorld的基础上，除了引入security，还增强token管理，同时用到redis、jwt等组件,在SpringSecurity的认证链上对登录认证、用户服务及校验、授权做修改！
 
+>SpringSecurity实则是一套过滤器链，本次实践对用户校验过滤器做了扩展实现RBAC数据库校验，然后在前后端分离框架提供登录验证接口、JWT凭据校验过滤器，解决分布式、无session依赖下的认证完整性，毕竟天然没有了CSRF攻击。
+
 ## 一、在helloWorld的基础上引入security
 helloworld工程中已演示，这里不赘述
 
@@ -19,7 +21,7 @@ helloworld工程中已演示，这里不赘述
 
 
 ## 二、认证
-SpringSecurity的认证有一套默认机制，也就是认证链，具体可看三更的材料，在本文档里有提供。
+SpringSecurity的认证有一套默认机制，也就是认证链、过滤器链，具体可看三更的材料，在本文档里有提供。
 
 该认证链规范，易于扩展，相对也复杂、冗长，目前前后端分离框架，需要对该认证链做一下修改。
 - 1、除了helloworld中引入的security的依赖，还需要引入mysql、redis等基础环境，这是主流配置，高效。
